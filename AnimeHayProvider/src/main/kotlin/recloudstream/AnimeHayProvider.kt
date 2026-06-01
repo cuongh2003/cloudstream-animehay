@@ -1,68 +1,78 @@
-package com.lagradost.cloudstream3.plugins
+package recloudstream
 
-import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.utils.*
-import org.jsoup.nodes.Document
+import com.lagradost.cloudstream3.HomePageList
+import com.lagradost.cloudstream3.HomePageResponse
+import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.fixUrl
+import com.lagradost.cloudstream3.newAnimeSearchResponse
+import com.lagradost.cloudstream3.newAnimeLoadResponse
+import com.lagradost.cloudstream3.newEpisode
+import com.lagradost.cloudstream3.DubStatus
+import com.lagradost.cloudstream3.utils.Qualities
+import com.lagradost.cloudstream3.utils.newExtractorLink
+import com.lagradost.cloudstream3.utils.ExtractorLinkType // Import thêm định dạng link của SDK
 import java.util.ArrayList
 
 class AnimeHayProvider : MainAPI() {
     override var mainUrl = "https://animehay04.site"
     override var name = "AnimeHay"
+    override val supportedTypes = setOf(TvType.Anime, TvType.AnimeMovie)
+
     override val hasMainPage = true
     override var lang = "vi"
-    override val hasQuickSearch = false
 
-    override val supportedTypes = setOf(
-        TvType.Anime,
-        TvType.AnimeMovie
-    )
-
-    // Cấu hình Header giả lập trình duyệt để tránh bị chặn kết nối
     private val defHeaders = mapOf(
-        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer" to mainUrl
+        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Referer" to "$mainUrl/"
     )
 
-    // 1. LUỒNG XỬ LÝ TRANG CHỦ (Bám sát theo cấu trúc HTML mới div.mc)
-    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? {
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        val list = ArrayList<SearchResponse>()
+
         val url = if (page > 1) "$mainUrl/phim-moi-cap-nhap/trang-$page.html" else mainUrl
         val document = app.get(url, headers = defHeaders).document
-        val homeProducts = ArrayList<SearchResponse>()
-
         val elements = document.select("div.mc")
+
         for (element in elements) {
             val linkElement = element.selectFirst("a.mc__link") ?: continue
             val title = linkElement.attr("title").trim()
             val movieUrl = fixUrl(linkElement.attr("href"))
-
             val posterElement = element.selectFirst(".mc__poster img")
             val posterUrl = posterElement?.attr("src") ?: ""
 
-            val epBadge = element.selectFirst(".mc__ep-badge")?.text()?.trim() ?: ""
-
-            homeProducts.add(newAnimeSearchResponse(title, movieUrl, TvType.Anime) {
+            list.add(newAnimeSearchResponse(title, movieUrl, TvType.Anime) {
                 this.posterUrl = posterUrl
-                this.meta = epBadge
             })
         }
 
-        return if (homeProducts.isNotEmpty()) {
-            newHomePageResponse(listOf(HomePageList("Mới cập nhật", homeProducts)), hasNext = true)
-        } else {
-            null
-        }
+        return newHomePageResponse(
+            listOf(
+                HomePageList(
+                    "Mới cập nhật",
+                    list,
+                    true
+                )
+            )
+        )
     }
 
-    // 2. LUỒNG XỬ LÝ TÌM KIẾM (Đồng bộ cấu trúc dạng thẻ .mc nếu trang tìm kiếm dùng chung giao diện)
     override suspend fun search(query: String): List<SearchResponse> {
-        // Encode từ khóa tìm kiếm để tránh lỗi font tiếng Việt khi gửi lên URL
-        val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
-        val searchUrl = "$mainUrl/tim-kiem/$encodedQuery"
+        val searchUrl = "$mainUrl/tim-kiem/"
+        val document = app.get(
+            searchUrl,
+            headers = defHeaders,
+            params = mapOf("keyword" to query)
+        ).document
 
-        val document = app.get(searchUrl, headers = defHeaders).document
         val searchResults = ArrayList<SearchResponse>()
-
-        // Thử tìm theo cấu trúc mới 'div.mc', nếu không có sẽ tự động fallback sang cấu trúc cũ đề phòng
         var elements = document.select("div.mc")
         if (elements.isEmpty()) {
             elements = document.select(".movies-list .movie-item, .movies-list .mc")
@@ -73,7 +83,6 @@ class AnimeHayProvider : MainAPI() {
             val title = (linkElement.attr("title").takeIf { it.isNotEmpty() }
                 ?: element.selectFirst(".mc__name, .name")?.text())?.trim() ?: continue
             val movieUrl = fixUrl(linkElement.attr("href"))
-
             val posterElement = element.selectFirst("img")
             val posterUrl = posterElement?.attr("src") ?: ""
 
@@ -84,37 +93,56 @@ class AnimeHayProvider : MainAPI() {
         return searchResults
     }
 
-    // 3. LUỒNG TẢI CHI TIẾT PHIM & DANH SÁCH TẬP
-    override suspend fun load(url: String): LoadResponse? {
+    override suspend fun load(url: String): LoadResponse {
         val document = app.get(url, headers = defHeaders).document
 
-        // Bóc tách tiêu đề phim từ trang thông tin phim
-        val title = (document.selectFirst("h1.heading, .info-movie .title")?.text()
-            ?: document.selectFirst(".name")?.text() ?: "Anime").trim()
+        val title = (document.selectFirst(".aim-hero__title")?.text()
+            ?: document.selectFirst("h1.heading")?.text()
+            ?: "Anime").trim()
 
-        val poster = document.selectFirst(".info-movie .poster img, .poster img")?.attr("src") ?: ""
-        val description = document.selectFirst(".description, .info-movie .summary")?.text()?.trim()
+        val poster = document.selectFirst(".aim-hero__poster img")?.attr("src") ?: ""
+        val description = document.selectFirst(".aim-body .description, .description")?.text()?.trim()
+            ?: "Không có mô tả."
 
-        val episodes = ArrayList<Episode>()
+        val episodesList = ArrayList<com.lagradost.cloudstream3.Episode>()
+        val epContainers = document.select(".aim-ep-group")
 
-        // Tìm các thẻ chứa danh sách tập phim (thường nằm trong cụm nút bấm chọn tập)
-        val epElements = document.select(".list-episode a, .episodes a")
-        for (ep in epElements) {
-            val epUrl = fixUrl(ep.attr("href"))
-            val epName = ep.text().trim()
-            epEpisodes.add(newEpisode(epUrl) {
-                this.name = epName
-            })
+        if (epContainers.isNotEmpty()) {
+            for (container in epContainers) {
+                val epElements = container.select(".aim-ep-grid a, a.aim-ep-btn")
+                for (ep in epElements) {
+                    val epUrl = fixUrl(ep.attr("href"))
+                    val epName = ep.selectFirst("span")?.text()?.trim() ?: ep.text().trim()
+
+                    if (epUrl.isNotEmpty() && epUrl.contains("/xem-phim/")) {
+                        episodesList.add(newEpisode(epUrl) {
+                            this.name = "Tập $epName"
+                        })
+                    }
+                }
+            }
+        } else {
+            val backupElements = document.select(".list-episode a, .episodes a, a.aim-ep-btn")
+            for (ep in backupElements) {
+                val epUrl = fixUrl(ep.attr("href"))
+                val epName = ep.text().trim()
+                if (epUrl.isNotEmpty() && epUrl.contains("/xem-phim/")) {
+                    episodesList.add(newEpisode(epUrl) {
+                        this.name = if (epName.contains("Tập")) epName else "Tập $epName"
+                    })
+                }
+            }
         }
+
+        val sortedEpisodes = episodesList.reversed()
 
         return newAnimeLoadResponse(title, url, TvType.Anime) {
             this.posterUrl = poster
             this.plot = description
-            this.episodes = epEpisodes
+            this.episodes = mutableMapOf(DubStatus.Subbed to sortedEpisodes)
         }
     }
 
-    // 4. LUỒNG LẤY LINK VIDEO ĐỂ PHÁT PHIM
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -122,31 +150,40 @@ class AnimeHayProvider : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         val document = app.get(data, headers = defHeaders).document
+        var linkFound = false
 
-        // Tìm các đoạn mã script chứa cấu hình luồng phát phát video (M3U8 hoặc MP4)
         val scripts = document.select("script")
         for (script in scripts) {
             val htmlData = script.html()
-            if (htmlData.contains("file:") || htmlData.contains("source")) {
-                // Sử dụng Regex tìm chuỗi link định dạng phát trực tuyến
-                val m3u8Regex = """(https?://[^\s"'<>]+?\.m3u8[^\s"']*)""".toRegex()
-                val match = m3u8Regex.find(htmlData)
+
+            if (htmlData.contains("M3U8_URL")) {
+                val m3u8VarRegex = """M3U8_URL\s*=\s*['"]([^'"]+)['"]""".toRegex()
+                val match = m3u8VarRegex.find(htmlData)
+
                 if (match != null) {
-                    val videoUrl = match.value
-                    callback.invoke(
-                        ExtractorLink(
-                            this.name,
-                            this.name,
-                            videoUrl,
-                            referer = mainUrl,
-                            quality = Qualities.Unknown.value,
-                            isM3u8 = true
+                    val rawVideoUrl = match.groupValues[1]
+                    val videoUrl = rawVideoUrl.replace("\\/", "/")
+
+                    if (videoUrl.isNotEmpty()) {
+                        // FIX LỖI: Loại bỏ hoàn toàn param 'isM3u8' và định dạng qua biến 'type' bên trong block khởi tạo
+                        callback.invoke(
+                            newExtractorLink(
+                                source = this.name,
+                                name = "AnimeHay Player",
+                                url = videoUrl
+                            ) {
+                                this.quality = Qualities.Unknown.value
+                                this.type = ExtractorLinkType.M3U8 // Xác định luồng phát định dạng M3U8/HLS phát trực tiếp công nghệ cao
+                                this.headers = mapOf("Referer" to "$mainUrl/")
+                            }
                         )
-                    )
-                    return true
+                        linkFound = true
+                        break
+                    }
                 }
             }
         }
-        return false
+
+        return linkFound
     }
 }
