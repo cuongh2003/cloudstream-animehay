@@ -1,6 +1,5 @@
 package recloudstream
 
-
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
@@ -19,7 +18,7 @@ import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.DubStatus
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.newExtractorLink
-import com.lagradost.cloudstream3.utils.ExtractorLinkType // Import thêm định dạng link của SDK
+import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import java.util.ArrayList
 
 class AnimeHayProvider : MainAPI() {
@@ -40,14 +39,18 @@ class AnimeHayProvider : MainAPI() {
 
         val url = if (page > 1) "$mainUrl/phim-moi-cap-nhap/trang-$page.html" else mainUrl
         val document = app.get(url, headers = defHeaders).document
-        val elements = document.select("div.mc")
+
+        // SỬA SELECTOR TRANG CHỦ: Quét đa lớp bao gồm cả các khối chứa movie mới
+        val elements = document.select(".movies-list .movie-item, div.mc, .list-films .film-item")
 
         for (element in elements) {
-            val linkElement = element.selectFirst("a.mc__link") ?: continue
-            val title = linkElement.attr("title").trim()
+            val linkElement = element.selectFirst("a.mc__link, a") ?: continue
+            val title = (linkElement.attr("title").takeIf { it.isNotEmpty() }
+                ?: element.selectFirst(".mc__name, .name, .title")?.text())?.trim() ?: continue
             val movieUrl = fixUrl(linkElement.attr("href"))
-            val posterElement = element.selectFirst(".mc__poster img")
-            val posterUrl = posterElement?.attr("src") ?: ""
+
+            val posterElement = element.selectFirst("img")
+            val posterUrl = posterElement?.attr("src") ?: posterElement?.attr("data-src") ?: ""
 
             list.add(newAnimeSearchResponse(title, movieUrl, TvType.Anime) {
                 this.posterUrl = posterUrl
@@ -74,18 +77,18 @@ class AnimeHayProvider : MainAPI() {
         ).document
 
         val searchResults = ArrayList<SearchResponse>()
-        var elements = document.select("div.mc")
-        if (elements.isEmpty()) {
-            elements = document.select(".movies-list .movie-item, .movies-list .mc")
-        }
+
+        // SỬA SELECTOR TÌM KIẾM: Đa dạng hóa bộ chọn để bọc hết các thẻ phim
+        val elements = document.select(".movies-list .movie-item, div.mc, .list-films .film-item")
 
         for (element in elements) {
             val linkElement = element.selectFirst("a.mc__link, a") ?: continue
             val title = (linkElement.attr("title").takeIf { it.isNotEmpty() }
-                ?: element.selectFirst(".mc__name, .name")?.text())?.trim() ?: continue
+                ?: element.selectFirst(".mc__name, .name, .title")?.text())?.trim() ?: continue
             val movieUrl = fixUrl(linkElement.attr("href"))
+
             val posterElement = element.selectFirst("img")
-            val posterUrl = posterElement?.attr("src") ?: ""
+            val posterUrl = posterElement?.attr("src") ?: posterElement?.attr("data-src") ?: ""
 
             searchResults.add(newAnimeSearchResponse(title, movieUrl, TvType.Anime) {
                 this.posterUrl = posterUrl
@@ -98,44 +101,35 @@ class AnimeHayProvider : MainAPI() {
         val document = app.get(url, headers = defHeaders).document
 
         val title = (document.selectFirst(".aim-hero__title")?.text()
-            ?: document.selectFirst("h1.heading")?.text()
+            ?: document.selectFirst("h1.heading, .info-movie .title")?.text()
             ?: "Anime").trim()
 
-        val poster = document.selectFirst(".aim-hero__poster img")?.attr("src") ?: ""
-        val description = document.selectFirst(".aim-body .description, .description")?.text()?.trim()
+        val poster = document.selectFirst(".aim-hero__poster img, .info-movie img")?.attr("src") ?: ""
+        val description = document.selectFirst(".aim-body .description, .description, .content-film")?.text()?.trim()
             ?: "Không có mô tả."
 
         val episodesList = ArrayList<com.lagradost.cloudstream3.Episode>()
-        val epContainers = document.select(".aim-ep-group")
 
-        if (epContainers.isNotEmpty()) {
-            for (container in epContainers) {
-                val epElements = container.select(".aim-ep-grid a, a.aim-ep-btn")
-                for (ep in epElements) {
-                    val epUrl = fixUrl(ep.attr("href"))
-                    val epName = ep.selectFirst("span")?.text()?.trim() ?: ep.text().trim()
+        // SỬA SELECTOR DANH SÁCH TẬP: Quét sạch cả cấu trúc cũ lẫn mới của server
+        val epElements = document.select(".aim-ep-group .aim-ep-grid a, a.aim-ep-btn, .list-episode a, .episodes a")
 
-                    if (epUrl.isNotEmpty() && epUrl.contains("/xem-phim/")) {
-                        episodesList.add(newEpisode(epUrl) {
-                            this.name = "Tập $epName"
-                        })
-                    }
-                }
-            }
-        } else {
-            val backupElements = document.select(".list-episode a, .episodes a, a.aim-ep-btn")
-            for (ep in backupElements) {
-                val epUrl = fixUrl(ep.attr("href"))
-                val epName = ep.text().trim()
-                if (epUrl.isNotEmpty() && epUrl.contains("/xem-phim/")) {
-                    episodesList.add(newEpisode(epUrl) {
-                        this.name = if (epName.contains("Tập")) epName else "Tập $epName"
-                    })
-                }
+        for (ep in epElements) {
+            val epUrl = fixUrl(ep.attr("href"))
+            val epName = ep.selectFirst("span")?.text()?.trim() ?: ep.text().trim()
+
+            if (epUrl.isNotEmpty() && (epUrl.contains("/xem-phim/") || epUrl.contains("/tap-"))) {
+                episodesList.add(newEpisode(epUrl) {
+                    this.name = if (epName.contains("Tập")) epName else "Tập $epName"
+                })
             }
         }
 
-        val sortedEpisodes = episodesList.reversed()
+        // Kiểm tra thứ tự tập để tránh bị đảo lộn trên giao diện
+        val sortedEpisodes = if (episodesList.isNotEmpty() && episodesList.first().name?.contains("1") == false) {
+            episodesList.reversed()
+        } else {
+            episodesList
+        }
 
         return newAnimeLoadResponse(title, url, TvType.Anime) {
             this.posterUrl = poster
@@ -166,7 +160,6 @@ class AnimeHayProvider : MainAPI() {
                     val videoUrl = rawVideoUrl.replace("\\/", "/")
 
                     if (videoUrl.isNotEmpty()) {
-                        // FIX LỖI: Loại bỏ hoàn toàn param 'isM3u8' và định dạng qua biến 'type' bên trong block khởi tạo
                         callback.invoke(
                             newExtractorLink(
                                 source = this.name,
@@ -174,7 +167,7 @@ class AnimeHayProvider : MainAPI() {
                                 url = videoUrl
                             ) {
                                 this.quality = Qualities.Unknown.value
-                                this.type = ExtractorLinkType.M3U8 // Xác định luồng phát định dạng M3U8/HLS phát trực tiếp công nghệ cao
+                                this.type = ExtractorLinkType.M3U8
                                 this.headers = mapOf("Referer" to "$mainUrl/")
                             }
                         )
