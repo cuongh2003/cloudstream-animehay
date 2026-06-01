@@ -1,0 +1,113 @@
+[
+    {
+        "iconUrl": "https://animehay04.site/themes/img/logo.png",
+        "jarFileSize": 38101,
+        "fileHash": "sha256-575a986d99a29f86ba06cf7f7620e8368fa9fecaa515420065bdc37c55d56066",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/cuongh2003/cloudstream-animehay",
+        "fileSize": 11536,
+        "status": 1,
+        "authors": [
+            "T\u00eanC\u1ee7aB\u1ea1n"
+        ],
+        "tvTypes": [
+            "Anime",
+            "AnimeMovie"
+        ],
+        "version": 1,
+        "internalName": "AnimeHayProvider",
+        "jarUrl": "https://raw.githubusercontent.com/cuongh2003/cloudstream-animehay/builds/AnimeHayProvider.jar",
+        "description": "Xem phim Anime thuy\u1ebft minh, vietsub t\u1eeb AnimeHay",
+        "url": "https://raw.githubusercontent.com/cuongh2003/cloudstream-animehay/builds/AnimeHayProvider.cs3",
+        "name": "AnimeHayProvider",
+        "jarHash": "sha256-da765e0fd8f93fb2d2da81a1737c95151b4b9a3e48a00b78cdfb00e3f30b2ce9"
+    },
+    {
+        "iconUrl": "https://www.google.com/s2/favicons?domain=www.dailymotion.com&sz=%size%",
+        "jarFileSize": 49385,
+        "fileHash": "sha256-54933e90001e8e306d8c35c0892d89b5c5058e40b8d1e5daa84d69e6f6cb699e",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/cuongh2003/cloudstream-animehay",
+        "fileSize": 11500,
+        "status": 1,
+        "authors": [
+            "Luna712"
+        ],
+        "tvTypes": [
+            "Others"
+        ],
+        "version": 4,
+        "internalName": "DailymotionProvider",
+        "jarUrl": "https://raw.githubusercontent.com/cuongh2003/cloudstream-animehay/builds/DailymotionProvider.jar",
+        "description": "Watch content from Dailymotion",
+        "url": "https://raw.githubusercontent.com/cuongh2003/cloudstream-animehay/builds/DailymotionProvider.cs3",
+        "name": "DailymotionProvider",
+        "jarHash": "sha256-0082fee9efa7b68099f4994066838fa3bdb010b681fa8798a7fb1261dafeecea"
+    },
+    {
+        "iconUrl": "https://www.google.com/s2/favicons?domain=archive.org&sz=%size%",
+        "jarFileSize": 125533,
+        "fileHash": "sha256-2a4c0322b48f11e978ca2b1a7f107d78e779220872eda06391a27d6af74d3ff9",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/cuongh2003/cloudstream-animehay",
+        "fileSize": 28327,
+        "status": 1,
+        "authors": [
+            "Luna712"
+        ],
+        "tvTypes": [
+            "Others"
+        ],
+        "version": 1,
+        "internalName": "InternetArchiveProvider",
+        "jarUrl": "https://raw.githubusercontent.com/cuongh2003/cloudstream-animehay/builds/InternetArchiveProvider.jar",
+        "description": "Watch content from the Internet Archive at archive.org",
+        "url": "https://raw.githubusercontent.com/cuongh2003/cloudstream-animehay/builds/InternetArchiveProvider.cs3",
+        "name": "InternetArchiveProvider",
+        "jarHash": "sha256-d94df62a991b781a89407c4a6581b59ad8f2b7bb34ac575002607331f8dcab30"
+    },
+    {
+        "iconUrl": "https://www.google.com/s2/favicons?domain=invidious.io&sz=%size%",
+        "jarFileSize": 62067,
+        "fileHash": "sha256-635f1b310bdab88747012ddeeab3e9503db087f3fb242a0a6149dd6eddb6d269",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/cuongh2003/cloudstream-animehay",
+        "fileSize": 13836,
+        "status": 1,
+        "authors": [
+            "Cloudburst"
+        ],
+        "tvTypes": [
+            "Others"
+        ],
+        "version": 9,
+        "internalName": "InvidiousProvider",
+        "jarUrl": "https://raw.githubusercontent.com/cuongh2003/cloudstream-animehay/builds/InvidiousProvider.jar",
+        "description": "Watch content from any invidious instance",
+        "url": "https://raw.githubusercontent.com/cuongh2003/cloudstream-animehay/builds/InvidiousProvider.cs3",
+        "name": "InvidiousProvider",
+        "jarHash": "sha256-5cb47da3d37062bcdacb6431fb5a64cc3856b4d39a0491cbf11cc24736f1f0d5"
+    },
+    {
+        "iconUrl": "https://www.google.com/s2/favicons?domain=twitch.tv&sz=%size%",
+        "jarFileSize": 57002,
+        "fileHash": "sha256-2c9b1d4da3f36e28a340134e391a21d80792e41ab42708e8c9b0d41abdd79e70",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/cuongh2003/cloudstream-animehay",
+        "fileSize": 15249,
+        "status": 1,
+        "authors": [
+            "CranberrySoup"
+        ],
+        "tvTypes": [
+            "Live"
+        ],
+        "version": 2,
+        "internalName": "TwitchProvider",
+        "jarUrl": "https://raw.githubusercontent.com/cuongh2003/cloudstream-animehay/builds/TwitchProvider.jar",
+        "description": "Watch livestreams from Twitch",
+        "url": "https://raw.githubusercontent.com/cuongh2003/cloudstream-animehay/builds/TwitchProvider.cs3",
+        "name": "TwitchProvider",
+        "jarHash": "sha256-f42b00a31a67d73dde575faad673572410961da50a8be91fde5976a0b40c5dc3"
+    }
+]
